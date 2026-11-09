@@ -1,0 +1,36 @@
+name: Svitlo watcher
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # кожні 5 хв (GitHub інколи запускає із затримкою)
+  workflow_dispatch:         # кнопка «Run workflow» для ручної перевірки
+
+permissions:
+  contents: write
+
+concurrency:
+  group: svitlo-watcher
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Перевірити графік
+        run: node check.mjs
+        env:
+          QUEUE: "1.2"
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+      - name: Зберегти стан
+        run: |
+          if [ -n "$(git status --porcelain state.json)" ]; then
+            git config user.name "svitlo-bot"
+            git config user.email "svitlo-bot@users.noreply.github.com"
+            git add state.json
+            git commit -m "Оновлено стан графіка"
+            git push
+          fi
